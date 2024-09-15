@@ -1,0 +1,18 @@
+[
+    {
+        "input": "How to fine-tune a model?",
+        "output": "Machine Learning"
+    },
+    {
+        "input": "What is Python used for?",
+        "output": "Programming"
+    },
+    {
+        "input": "Explain neural networks",
+        "output": "Deep Learning"
+    },
+    {
+        "input": "Best practices for Python logging",
+        "output": "Software Engineering"
+    }
+]
