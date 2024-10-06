@@ -2,7 +2,7 @@ import os as os
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-datapath = r'./aclImdb'
+datapath = r'/Users/harry/Documents/apps/ml/aclImdb'
 save_dir = r'./data'
 
 def get_data(datapath):
@@ -37,6 +37,7 @@ def generate_train_data():
     random_indexs = np.random.permutation(len(X))
     X = X[random_indexs]
     Y = Y[random_indexs]
+    np.savez(save_dir + '/train_test.npz', X_train=X, y_train=Y)
     X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2)
     X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.1)
     print("X_train:", X_train.shape)

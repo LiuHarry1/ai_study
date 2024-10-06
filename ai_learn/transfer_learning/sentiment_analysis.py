@@ -5,20 +5,22 @@ from keras.layers import Dense, Dropout
 import keras as keras
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 import tensorflow_hub as hub
+from sklearn.model_selection import train_test_split
 
-embedding_url = "https://tfhub.dev/google/nnlm-en-dim50/2"
+# embedding_url = "https://tfhub.dev/google/nnlm-en-dim50/2"
+embedding_url = "/Users/harry/Documents/apps/ml/nnlm_embedding"
 
 index_dic = {"0": "negative", "1": "positive"}
 
 
 def get_dataset_to_train():
-    train_test = np.load('dataset/train_test.npz', allow_pickle=True)
+    train_test = np.load('data/train_test.npz', allow_pickle=True)
+
     x_train = train_test['X_train']
     y_train = train_test['y_train']
-    x_test = train_test['X_test']
-    y_test = train_test['y_test']
-
-    return x_train, y_train, x_test, y_test
+    X_train, X_test, y_train, y_test = train_test_split(x_train, y_train, test_size=0.2)
+    print(len(X_train), len(X_test))
+    return X_train, y_train, X_test, y_test
 
 
 def get_model():
@@ -49,7 +51,7 @@ def train(model, train_data, train_labels, test_data, test_labels):
     test_data = np.asarray(test_data)  # Convert to numpy array
     print(train_data.shape, test_data.shape)
 
-    early_stop = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=4, mode='max', verbose=1)
+    early_stop = EarlyStopping(monitor='val_loss', patience=4, mode='max', verbose=1)
     # 定义ModelCheckpoint回调函数
     # checkpoint = ModelCheckpoint( './models/model_new1.h5', monitor='val_sparse_categorical_accuracy', save_best_only=True,
     #                              mode='max', verbose=1)
@@ -104,15 +106,25 @@ def predict_my_module():
     # review = "I don't like it"
     # review = "this is bad movie "
     # review = "This is good movie"
-    review = " this is terrible movie"
+    # review = " this is terrible movie"
     # review = "This isn‘t great movie"
     # review = "i think this is bad movie"
     # review = "I'm not very disappoint for this movie"
     # review = "I'm not very disappoint for this movie"
     # review = "I am very happy for this movie"
-    # neg:0 postive:1
-    s = predict(review)
+
+    new_texts = ["This movie was amazing!",
+                 "I did not like this movie at all.",
+                 "I didn't like this movie at all.",
+                 "this is bad movie ",
+                 "This is good movie",
+                 "This isn't good movie",
+                 "This is not good movie",
+                 "I don't like this movie at all",
+                 "i think this is bad movie"]
+    s = predict(new_texts)
     print(s)
+
 
 
 if __name__ == '__main__':
