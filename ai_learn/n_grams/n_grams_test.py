@@ -1,4 +1,5 @@
 from sklearn.feature_extraction.text import CountVectorizer
+from thefuzz import process
 import re
 
 
@@ -20,13 +21,25 @@ def generate_ngrams_with_count(texts, ngram_range):
     return ngrams_with_count
 
 
+# 使用 thefuzz 匹配最接近的单词
+def get_closest_word(last_word, ngrams, threshold=80):
+    candidates = [ngram.split()[0] for ngram in ngrams.keys()]
+    closest_match = process.extractOne(last_word, candidates, score_cutoff=threshold)
+    return closest_match[0] if closest_match else None
+
+
 # 根据最后一个单词预测高频后续序列
 def predict_next_sequences(ngrams_with_count, last_word, top_k=5):
-    # 过滤以最后一个单词开头的 n-grams
+    # 使用模糊匹配找到最接近的单词
+    matched_word = get_closest_word(last_word, ngrams_with_count)
+    if not matched_word:
+        return []
+
+    # 过滤以匹配单词开头的 n-grams
     filtered_ngrams = {
         ngram: count
         for ngram, count in ngrams_with_count.items()
-        if ngram.startswith(last_word)
+        if ngram.startswith(matched_word)
     }
 
     # 按频率排序
@@ -55,10 +68,10 @@ texts = [
 ]
 
 # 生成 n-gram 计数
-ngrams_with_count = generate_ngrams_with_count(texts, (2, 5))
+ngrams_with_count = generate_ngrams_with_count(texts, (1, 5))
 
 # 用户输入
-user_input = "I love"
+user_input = "I lov"  # 模糊输入
 tokens = preprocess(user_input)
 last_word = tokens[-1] if tokens else ""
 
@@ -67,6 +80,7 @@ suggested_ngrams = predict_next_sequences(ngrams_with_count, last_word, top_k=5)
 
 # 输出结果
 print("Last word:", last_word)
+print("Matched word (fuzzy):", get_closest_word(last_word, ngrams_with_count))
 print("Suggested n-grams:")
 for ngram in suggested_ngrams:
     print(ngram)
