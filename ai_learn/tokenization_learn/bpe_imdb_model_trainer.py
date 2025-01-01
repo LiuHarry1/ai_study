@@ -11,8 +11,10 @@ from keras import layers, models
 # Constants
 MAX_LEN = 200
 VOCAB_SIZE = 30000
-TRAIN_DIR = '/Users/harry/Documents/apps/ml/aclImdb/train'
-TEST_DIR = '/Users/harry/Documents/apps/ml/aclImdb/test'
+IMDB_DIR = "D:/train_data/aclImdb/aclImdb"
+TRAIN_DIR = IMDB_DIR+'/train'
+TEST_DIR = IMDB_DIR+'/test'
+save_dir = "data"
 
 def read_imdb_data(directory):
     texts, labels = [], []
@@ -25,7 +27,7 @@ def read_imdb_data(directory):
                     labels.append(1 if label_type == 'pos' else 0)  # 1 for pos, 0 for neg
     return texts, labels
 
-def get_dataset():
+def generate_dataset():
     # Load the data
     train_texts, train_labels = read_imdb_data(TRAIN_DIR)
     test_texts, test_labels = read_imdb_data(TEST_DIR)
@@ -37,6 +39,15 @@ def get_dataset():
         texts, labels, test_size=0.2, random_state=42
     )
     print(f"Train set size: {len(train_texts)}, Test set size: {len(test_texts)}")
+
+    np.savez(save_dir + '/train_test.npz', X_train=train_texts, y_train=train_labels, X_test=test_texts,
+             y_test=test_labels)
+def get_dataset():
+    train_test = np.load('data/train_test.npz', allow_pickle=True)
+    train_texts = train_test['X_train']
+    train_labels = train_test['y_train']
+    test_texts = train_test['X_test']
+    test_labels = train_test['y_test']
     return train_texts, train_labels, test_texts, test_labels
 
 def tokenize_texts(texts, tokenizer, max_length=MAX_LEN):
@@ -48,22 +59,22 @@ def train_tokenizer(train_texts):
     # Initialize and train the BPE tokenizer
     tokenizer = Tokenizer(BPE())
     tokenizer.pre_tokenizer = Whitespace()
-    trainer = BpeTrainer(vocab_size=VOCAB_SIZE, special_tokens=["<s>", "<pad>", "</s>", "<unk>", "<mask>"])
+    trainer = BpeTrainer(vocab_size=VOCAB_SIZE, special_tokens=[ "<pad>", "<s>", "</s>", "<unk>", "<mask>"])
     tokenizer.train_from_iterator(train_texts, trainer)
-    tokenizer.save("custom_tokenizer.json")
+    tokenizer.save(save_dir+"custom_tokenizer.json")
     return tokenizer
 
 def get_tokenized_dataset(train_texts, train_labels, test_texts, test_labels):
-    tokenizer = Tokenizer.from_file("custom_tokenizer.json")
+    tokenizer = Tokenizer.from_file("data/custom_tokenizer.json")
     tokenized_train_texts = tokenize_texts(train_texts, tokenizer)
     tokenized_test_texts = tokenize_texts(test_texts, tokenizer)
     return np.array(tokenized_train_texts), np.array(train_labels), np.array(tokenized_test_texts), np.array(test_labels)
 
 def build_model():
-    tokenizer = Tokenizer.from_file("custom_tokenizer.json")
+    tokenizer = Tokenizer.from_file(save_dir+"custom_tokenizer.json")
     model = models.Sequential([
         layers.Input(shape=(MAX_LEN,)),
-        layers.Embedding(input_dim=tokenizer.get_vocab_size(), output_dim=MAX_LEN),
+        layers.Embedding(input_dim=tokenizer.get_vocab_size(), output_dim=MAX_LEN, mask_zero=True),
         layers.Conv1D(filters=MAX_LEN, kernel_size=5, activation='relu'),
         layers.MaxPooling1D(pool_size=2),
         layers.Conv1D(filters=MAX_LEN, kernel_size=5, activation='relu'),
@@ -82,15 +93,22 @@ def build_model():
 def train_model(model, train_texts, train_labels):
     callbacks = [
         tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=4, mode='min', verbose=1),
-        tf.keras.callbacks.ModelCheckpoint("model.h5", monitor='val_loss', save_best_only=True, mode='min', verbose=1),
+        tf.keras.callbacks.ModelCheckpoint(save_dir+"model.h5", monitor='val_loss', save_best_only=True, mode='min', verbose=1),
         tf.keras.callbacks.TensorBoard(log_dir="logs")
     ]
     model.fit(train_texts, train_labels, epochs=20, batch_size=100, validation_split=0.1, callbacks=callbacks)
+
+def load_trained_model():
+    model = tf.keras.models.load_model('data/model.h5')
+    return model
 
 def evaluate_model(model, test_texts, test_labels):
     test_loss, test_acc = model.evaluate(test_texts, test_labels)
     print(f"Test Accuracy: {test_acc}")
 
+
+
+def predict_model(model):
     # Example predictions
 
     new_texts = ["This movie was amazing!",
@@ -102,15 +120,20 @@ def evaluate_model(model, test_texts, test_labels):
                  "This is not good movie",
                  "I don't like this movie at all",
                  "i think this is bad movie"]
-    tokenizer = Tokenizer.from_file("custom_tokenizer.json")
+    tokenizer = Tokenizer.from_file(save_dir + "/custom_tokenizer.json")
     tokenized_new_texts = tokenize_texts(new_texts, tokenizer)
     predictions = model.predict(tokenized_new_texts)
     print(predictions)  # Output probabilities
 
 if __name__ == '__main__':
+    generate_dataset()
     train_texts, train_labels, test_texts, test_labels = get_dataset()
     train_tokenizer(train_texts)
     train_texts, train_labels, test_texts, test_labels = get_tokenized_dataset(train_texts, train_labels, test_texts, test_labels)
     model = build_model()
     train_model(model, train_texts, train_labels)
+    model = load_trained_model()
+
     evaluate_model(model, test_texts, test_labels)
+
+    predict_model(model)
